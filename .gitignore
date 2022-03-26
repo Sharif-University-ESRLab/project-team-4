@@ -1,4 +1,5 @@
 /Code/Software/venv/
 /Code/Software/.idea/
+/Code/Software/__pycache__/
 /Code/.DS_Store
 .DS_Store
