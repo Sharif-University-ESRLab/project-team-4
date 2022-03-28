@@ -10,7 +10,7 @@ inputs = []
 
 # plot live data
 def live_plotter():
-    ani = FuncAnimation(plt.gcf(), animate, 1000)
+    ani = FuncAnimation(plt.gcf(), animate)
     plt.tight_layout()
     plt.show()
 
