@@ -18,7 +18,7 @@ def read_adc(ser: serial.SerialBase):
             sample = int(sample)
             with buffer_lock:
                 adc_inputs.append(sample)
-                pwm_queue.put(sample)  # Just for test
+                # pwm_queue.put(sample)  # Just for test
     except Exception as e:
         print(e)
 
@@ -57,13 +57,13 @@ def start_read_adc_thread():
 #     x = max(x, 0)
 #     with buffer_lock:
 #         adc_inputs.append(x)
-#         pwm_queue.put(x)  # Just for test
+#         # pwm_queue.put(x)  # Just for test
 #
 #
 # def write_adc():
 #     with buffer_lock:
 #         if pwm_queue.empty():
-#             val = 500
+#             val = 0
 #         else:
 #             val = pwm_queue.get()
 #     print('Output: ', val)
