@@ -1,7 +1,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from arduino_serial import *
+from arduino_serial import adc_inputs, pwm_queues, buffer_lock
 import numpy as np
 from matplotlib.widgets import CheckButtons
 import json, os
@@ -9,7 +9,7 @@ import json, os
 # for hiding buttons
 mpl.rcParams["toolbar"] = "None"
 INTERVAL = 100  # Time between graph frames in milli seconds.
-optimal_frequency = (INTERVAL // SAMPLE_DELAY) * 2
+CURRENT_CHANNEL = 3
 
 fig = plt.figure(figsize=(12, 6), facecolor='#DEDEDE')
 ax = plt.subplot(121)
@@ -18,8 +18,9 @@ ax = plt.subplot(121)
 save_button = CheckButtons(plt.axes([0.5, 0.001, 0.5, 0.5], frame_on=False), ["save"], [False])
 transfer_button = CheckButtons(plt.axes([0.5, 0.5, 0.5, 0.5], frame_on=False), ["observe saved data"], [False])
 
+save_file_name = 'values_{}.txt'.format(CURRENT_CHANNEL)
 # clear content of values file
-open('values.txt', 'w').close()
+open(save_file_name, 'w').close()
 
 save_start_index = 0
 
@@ -27,15 +28,15 @@ save_start_index = 0
 def save(label):
     global save_start_index
     if save_button.get_status()[0]:
-        save_start_index = len(adc_inputs)
+        save_start_index = len(adc_inputs[CURRENT_CHANNEL])
     else:
         vals = []
-        f = open('values.txt', 'r')
-        if os.stat("values.txt").st_size != 0:
+        f = open(save_file_name, 'r')
+        if os.stat(save_file_name).st_size != 0:
             vals.extend(json.loads(f.read()))
         f.close()
-        vals.extend(adc_inputs[save_start_index:])
-        f = open('values.txt', 'w')
+        vals.extend(adc_inputs[CURRENT_CHANNEL][save_start_index:])
+        f = open(save_file_name, 'w')
         f.write(json.dumps(vals))
         f.close()
 
@@ -43,16 +44,16 @@ def save(label):
 def transfer_to_arduino(label):
     if transfer_button.get_status()[0]:
         vals = []
-        f = open('values.txt', 'r')
-        if os.stat("values.txt").st_size != 0:
+        f = open(save_file_name, 'r')
+        if os.stat(save_file_name).st_size != 0:
             vals.extend(json.loads(f.read()))
         f.close()
         with buffer_lock:
-            pwm_queue.queue.clear()
-            [pwm_queue.put(i) for i in vals]
+            pwm_queues[CURRENT_CHANNEL].queue.clear()
+            [pwm_queues[CURRENT_CHANNEL].put(i) for i in vals]
     else:
         with buffer_lock:
-            pwm_queue.queue.clear()
+            pwm_queues[CURRENT_CHANNEL].queue.clear()
 
 
 # plot live data
@@ -70,7 +71,7 @@ def live_plotter():
 def animate(i):
     global ax
     with buffer_lock:
-        inputs_copy = adc_inputs.copy()
+        inputs_copy = adc_inputs[CURRENT_CHANNEL].copy()
     if len(inputs_copy) == 0:
         return
     ax.cla()

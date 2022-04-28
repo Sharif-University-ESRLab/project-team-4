@@ -4,32 +4,38 @@ import serial
 import random
 import time
 
+NUM = 8
 SAMPLE_DELAY = 10  # milli
 buffer_lock = threading.Lock()
-adc_inputs = []
-pwm_queue = queue.Queue()
+adc_inputs = [[] for _ in range(NUM)]
+pwm_queues = [queue.Queue() for _ in range(NUM)]
 
 
 ####  REAL  ####
 def read_adc(ser: serial.SerialBase):
     try:
-        sample = ser.readline().strip()
-        if sample.decode("utf-8").isnumeric():
-            sample = int(sample)
-            with buffer_lock:
-                adc_inputs.append(sample)
-                # pwm_queue.put(sample)  # Just for test
+        packet = ser.readline().strip().decode("utf-8")
+        samples = packet.split('|')
+        if len(samples) != (NUM + 1):
+            return
+        with buffer_lock:
+            for i in range(NUM):
+                if samples[i].isnumeric():
+                    adc_inputs[i].append(int(samples[i]))
     except Exception as e:
         print(e)
 
 
 def write_adc(ser: serial.SerialBase):
+    packet = ''
     with buffer_lock:
-        if pwm_queue.empty():
-            val = 0
-        else:
-            val = pwm_queue.get()
-    ser.write(str.encode('{}\n'.format(val)))
+        for i in range(NUM):
+            if pwm_queues[i].empty():
+                val = 0
+            else:
+                val = pwm_queues[i].get()
+            packet += '{:4}|'.format(val)
+    ser.write(str.encode('{}\n'.format(packet)))
 
 
 def start_read_adc_thread():
@@ -41,32 +47,33 @@ def start_read_adc_thread():
 
     threading.Thread(target=continuous_read_adc).start()
 
+
 ####  FAKE   ####
-# x = 500
-# s = 0
+# position_s = [random.randint(100, 900) for _ in range(NUM)]
+# speed_s = [random.randint(-5, +5) for _ in range(NUM)]
 #
 #
 # def read_adc():
-#     global x, s
 #     time.sleep(SAMPLE_DELAY / 1000)
-#     s += random.randint(-3, 3)
-#     s = min(s, 6)
-#     s = max(s, -6)
-#     x += s
-#     x = min(x, 1024)
-#     x = max(x, 0)
 #     with buffer_lock:
-#         adc_inputs.append(x)
-#         # pwm_queue.put(x)  # Just for test
+#         for i in range(NUM):
+#             speed_s[i] += random.randint(-3, 3)
+#             speed_s[i] = min(speed_s[i], 6)
+#             speed_s[i] = max(speed_s[i], -6)
+#             position_s[i] += speed_s[i]
+#             position_s[i] = min(position_s[i], 1024)
+#             position_s[i] = max(position_s[i], 0)
+#             adc_inputs[i].append(position_s[i])
 #
 #
 # def write_adc():
 #     with buffer_lock:
-#         if pwm_queue.empty():
-#             val = 0
-#         else:
-#             val = pwm_queue.get()
-#     print('Output: ', val)
+#         for i in range(NUM):
+#             if pwm_queues[i].empty():
+#                 val = 0
+#             else:
+#                 val = pwm_queues[i].get()
+#             print('Output {}: {}'.format(i, val))
 #
 #
 # def start_read_adc_thread():
