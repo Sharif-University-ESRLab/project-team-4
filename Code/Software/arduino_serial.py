@@ -5,7 +5,7 @@ import random
 import time
 
 NUM = 8
-SAMPLE_DELAY = 10  # milli
+SAMPLE_DELAY = 50  # milli
 buffer_lock = threading.Lock()
 adc_inputs = [[] for _ in range(NUM)]
 pwm_queues = [queue.Queue() for _ in range(NUM)]
