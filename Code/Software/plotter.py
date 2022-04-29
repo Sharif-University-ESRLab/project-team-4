@@ -6,7 +6,8 @@ import numpy as np
 from matplotlib.widgets import CheckButtons
 import json, os
 
-INTERVAL = 100  # Time between graph frames in milli seconds.
+NUM = 4  # TODO: performance is not good enough for 8 charts
+INTERVAL = 200  # Time between graph frames in milli seconds.
 
 fig, axes = plt.subplots(2, 4, figsize=(15, 6))
 fig.tight_layout()
@@ -19,7 +20,7 @@ save_start_index = [0] * NUM
 
 def save(channel):
     def func(label):
-        save_file_name = f"values_{int(channel)+1}.txt"
+        save_file_name = f"values_{int(channel) + 1}.txt"
         # print("---------------------------------", save_file_name, "--------------------------------")
         if save_buttons[channel].get_status()[0]:
             save_start_index[channel] = len(adc_inputs[channel])
@@ -39,7 +40,7 @@ def save(channel):
 
 def transfer_to_arduino(channel):
     def func(label):
-        save_file_name = f"values_{int(channel)+1}.txt"
+        save_file_name = f"values_{int(channel) + 1}.txt"
         if transfer_buttons[channel].get_status()[0]:
             vals = []
             f = open(save_file_name, "r")
@@ -109,17 +110,18 @@ def live_plotter():
 
 
 # animating each input data
-def animate(i):
-    with buffer_lock:
-        inputs_copy = []
-        for i in range(NUM):
-            inputs_copy.append(adc_inputs[i].copy())
-            if len(inputs_copy[i]) == 0:
-                continue
-            axes[i // 4, i % 4].cla()
-            axes[i // 4, i % 4].set_ylim(-100, 1100)
-            axes[i // 4, i % 4].set_xlim(
-                0, np.power(np.e, int(np.log(len(inputs_copy[i]))) + 1)
-            )
-            axes[i // 4, i % 4].plot(inputs_copy[i], color=colors[i])
-            axes[i // 4, i % 4].title.set_text("{}th Input".format(i + 1))
+def animate(_):
+    for i in range(NUM):
+        with buffer_lock:
+            # input_copy = adc_inputs[i].copy()
+            input_copy = adc_inputs[i][-400:].copy()
+        if len(input_copy) == 0:
+            continue
+        axes[i // 4, i % 4].cla()
+        axes[i // 4, i % 4].set_ylim(-100, 1100)
+        # axes[i // 4, i % 4].set_xlim(
+        #     0, np.power(np.e, int(np.log(len(input_copy))) + 1)
+        # )
+        axes[i // 4, i % 4].set_xlim(0, 410)
+        axes[i // 4, i % 4].plot(input_copy, color=colors[i])
+        axes[i // 4, i % 4].title.set_text("{}th Input".format(i + 1))
