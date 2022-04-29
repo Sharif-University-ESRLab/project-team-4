@@ -1,87 +1,127 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from arduino_serial import adc_inputs, pwm_queues, buffer_lock
+from arduino_serial import adc_inputs, pwm_queues, buffer_lock, NUM
 import numpy as np
 from matplotlib.widgets import CheckButtons
 import json, os
 
-# for hiding buttons
-mpl.rcParams["toolbar"] = "None"
-INTERVAL = 100  # Time between graph frames in milli seconds.
-CURRENT_CHANNEL = 3
+NUM = 4  # TODO: performance is not good enough for 8 charts
+INTERVAL = 200  # Time between graph frames in milli seconds.
 
-fig = plt.figure(figsize=(12, 6), facecolor='#DEDEDE')
-ax = plt.subplot(121)
+fig, axes = plt.subplots(2, 4, figsize=(15, 6))
+fig.tight_layout()
+colors = ["red", "black", "yellow", "green", "orange", "pink", "cyan", "purple"]
 
-# x position, y position, width and height
-save_button = CheckButtons(plt.axes([0.5, 0.001, 0.5, 0.5], frame_on=False), ["save"], [False])
-transfer_button = CheckButtons(plt.axes([0.5, 0.5, 0.5, 0.5], frame_on=False), ["observe saved data"], [False])
-
-save_file_name = 'values_{}.txt'.format(CURRENT_CHANNEL)
-# clear content of values file
-open(save_file_name, 'w').close()
-
-save_start_index = 0
+save_buttons = [] * NUM
+transfer_buttons = [] * NUM
+save_start_index = [0] * NUM
 
 
-def save(label):
-    global save_start_index
-    if save_button.get_status()[0]:
-        save_start_index = len(adc_inputs[CURRENT_CHANNEL])
-    else:
-        vals = []
-        f = open(save_file_name, 'r')
-        if os.stat(save_file_name).st_size != 0:
-            vals.extend(json.loads(f.read()))
-        f.close()
-        vals.extend(adc_inputs[CURRENT_CHANNEL][save_start_index:])
-        f = open(save_file_name, 'w')
-        f.write(json.dumps(vals))
-        f.close()
+def save(channel):
+    def func(label):
+        save_file_name = f"values_{int(channel) + 1}.txt"
+        # print("---------------------------------", save_file_name, "--------------------------------")
+        if save_buttons[channel].get_status()[0]:
+            save_start_index[channel] = len(adc_inputs[channel])
+        else:
+            vals = []
+            f = open(save_file_name, "r")
+            if os.stat(save_file_name).st_size != 0:
+                vals.extend(json.loads(f.read()))
+            f.close()
+            vals.extend(adc_inputs[channel][save_start_index[channel]:])
+            f = open(save_file_name, "w")
+            f.write(json.dumps(vals))
+            f.close()
+
+    return func
 
 
-def transfer_to_arduino(label):
-    if transfer_button.get_status()[0]:
-        vals = []
-        f = open(save_file_name, 'r')
-        if os.stat(save_file_name).st_size != 0:
-            vals.extend(json.loads(f.read()))
-        f.close()
-        with buffer_lock:
-            pwm_queues[CURRENT_CHANNEL].queue.clear()
-            [pwm_queues[CURRENT_CHANNEL].put(i) for i in vals]
-    else:
-        with buffer_lock:
-            pwm_queues[CURRENT_CHANNEL].queue.clear()
+def transfer_to_arduino(channel):
+    def func(label):
+        save_file_name = f"values_{int(channel) + 1}.txt"
+        if transfer_buttons[channel].get_status()[0]:
+            vals = []
+            f = open(save_file_name, "r")
+            if os.stat(save_file_name).st_size != 0:
+                vals.extend(json.loads(f.read()))
+            f.close()
+            with buffer_lock:
+                pwm_queues[channel].queue.clear()
+                [pwm_queues[channel].put(i) for i in vals]
+        else:
+            with buffer_lock:
+                pwm_queues[channel].queue.clear()
+
+    return func
 
 
 # plot live data
 def live_plotter():
+    # set buttons x and y
+    save_xy = [
+        (0.185, 0.75),
+        (0.43, 0.75),
+        (0.675, 0.75),
+        (0.92, 0.75),
+        (0.185, 0.25),
+        (0.43, 0.25),
+        (0.675, 0.25),
+        (0.92, 0.25),
+    ]
+    observe_xy = [
+        (0.185, 0.7),
+        (0.43, 0.7),
+        (0.675, 0.7),
+        (0.92, 0.7),
+        (0.185, 0.2),
+        (0.43, 0.2),
+        (0.675, 0.2),
+        (0.92, 0.2),
+    ]
+
     ani = FuncAnimation(plt.gcf(), animate, interval=INTERVAL)
-    plt.tight_layout()
 
-    save_button.on_clicked(save)
-    transfer_button.on_clicked(transfer_to_arduino)
+    for i in range(NUM):
+        save_label = ["save"]
+        observe_label = ["observe"]
 
+        # x position, y position, width and height
+        save_ax = plt.axes([save_xy[i][0], save_xy[i][1], 0.1, 0.1], frame_on=False)
+        observe_ax = plt.axes(
+            [observe_xy[i][0], observe_xy[i][1], 0.1, 0.1], frame_on=False
+        )
+
+        save_buttons.append(CheckButtons(save_ax, save_label, [False]))
+        transfer_buttons.append(CheckButtons(observe_ax, observe_label, [False]))
+
+        # clear content of values file
+        save_file_name = "values_{}.txt".format(i + 1)
+        open(save_file_name, "w").close()
+
+        # buttons functionalities
+        save_buttons[i].on_clicked(save(i))
+        transfer_buttons[i].on_clicked(transfer_to_arduino(i))
+
+    # add some space between subplots and to the right of the rightmost ones
+    plt.subplots_adjust(wspace=0.6, right=0.92)
     plt.show()
 
 
 # animating each input data
-def animate(i):
-    global ax
-    with buffer_lock:
-        inputs_copy = adc_inputs[CURRENT_CHANNEL].copy()
-    if len(inputs_copy) == 0:
-        return
-    ax.cla()
-    ax.set_ylim(-100, 1100)
-    ax.set_xlim(0, np.power(np.e, int(np.log(len(inputs_copy))) + 1))
-    ax.plot(inputs_copy)
-    # plt.plot(inputs_copy)
-    # # clear axis
-    # plt.cla()
-    # # plot data
-    # plt.scatter(len(inputs_copy) - 1, inputs_copy[-1])
-    # # show the data on the plot
-    # plt.text(len(inputs_copy) - 1, inputs_copy[-1] + 2, "{}".format(inputs_copy[-1]))
+def animate(_):
+    for i in range(NUM):
+        with buffer_lock:
+            # input_copy = adc_inputs[i].copy()
+            input_copy = adc_inputs[i][-400:].copy()
+        if len(input_copy) == 0:
+            continue
+        axes[i // 4, i % 4].cla()
+        axes[i // 4, i % 4].set_ylim(-100, 1100)
+        # axes[i // 4, i % 4].set_xlim(
+        #     0, np.power(np.e, int(np.log(len(input_copy))) + 1)
+        # )
+        axes[i // 4, i % 4].set_xlim(0, 410)
+        axes[i // 4, i % 4].plot(input_copy, color=colors[i])
+        axes[i // 4, i % 4].title.set_text("{}th Input".format(i + 1))

@@ -10,7 +10,7 @@ void setup()
 
 void loop()
 {
-	delay(10); // TODO: use clock
+	long int t1 = millis();
 
 	String out_packet = String("");
 	for (int i = 0; i < NUM; i++)
@@ -20,12 +20,16 @@ void loop()
 	}
 	Serial.println(out_packet);
 
-
-	String in_packet = Serial.readStringUntil('\n');
-	for (int i = 0; i < NUM; i++)
+	if (Serial.available() > 40)
 	{
-		int val = in_packet.substring(5 * i, 5 * i + 4).toInt();
-		analogWrite(pwm_pins[i], val / 4);
-		// analogRead values go from 0 to 1023, analogWrite values from 0 to 255
+		String in_packet = Serial.readStringUntil('\n');
+		for (int i = 0; i < NUM; i++)
+		{
+			int val = in_packet.substring(5 * i, 5 * i + 4).toInt();
+			analogWrite(pwm_pins[i], val / 4);
+			// analogRead values go from 0 to 1023, analogWrite values from 0 to 255
+		}
 	}
+	long int t2 = millis();
+	delay(50 - (t2 - t1)); // TODO: use clock
 }

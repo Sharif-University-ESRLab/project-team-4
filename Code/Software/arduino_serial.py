@@ -5,7 +5,7 @@ import random
 import time
 
 NUM = 8
-SAMPLE_DELAY = 10  # milli
+SAMPLE_DELAY = 50  # milli
 buffer_lock = threading.Lock()
 adc_inputs = [[] for _ in range(NUM)]
 pwm_queues = [queue.Queue() for _ in range(NUM)]
@@ -51,8 +51,8 @@ def start_read_adc_thread():
 ####  FAKE   ####
 # position_s = [random.randint(100, 900) for _ in range(NUM)]
 # speed_s = [random.randint(-5, +5) for _ in range(NUM)]
-#
-#
+
+
 # def read_adc():
 #     time.sleep(SAMPLE_DELAY / 1000)
 #     with buffer_lock:
@@ -64,8 +64,9 @@ def start_read_adc_thread():
 #             position_s[i] = min(position_s[i], 1024)
 #             position_s[i] = max(position_s[i], 0)
 #             adc_inputs[i].append(position_s[i])
-#
-#
+#             pwm_queues[i].put(position_s[i])
+
+
 # def write_adc():
 #     with buffer_lock:
 #         for i in range(NUM):
@@ -74,12 +75,12 @@ def start_read_adc_thread():
 #             else:
 #                 val = pwm_queues[i].get()
 #             print('Output {}: {}'.format(i, val))
-#
-#
+
+
 # def start_read_adc_thread():
 #     def continuous_read_adc():
 #         while True:
 #             read_adc()
 #             write_adc()
-#
+
 #     threading.Thread(target=continuous_read_adc).start()
