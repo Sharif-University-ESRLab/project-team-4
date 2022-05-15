@@ -6,16 +6,21 @@ import numpy as np
 from matplotlib.widgets import CheckButtons
 import json, os
 
-NUM = 4  # TODO: performance is not good enough for 8 charts
 INTERVAL = 200  # Time between graph frames in milli seconds.
 
-fig, axes = plt.subplots(2, 4, figsize=(15, 6))
-fig.tight_layout()
-colors = ["red", "black", "yellow", "green", "orange", "pink", "cyan", "purple"]
+colors = ["salmon", "grey", "yellow", "lightgreen", "orange", "pink", "cyan", "plum"]
 
 save_buttons = [] * NUM
 transfer_buttons = [] * NUM
+visibility_buttons = [] * NUM
 save_start_index = [0] * NUM
+visible_diagrams = [True]
+visible_diagrams.extend([False] * (NUM - 1))
+# fig, axes = plt.subplots(sum(visible_diagrams), figsize=(10, 8))
+fig = plt.figure(figsize=(10, 8))
+axes = [None] * NUM
+axes[0] = fig.add_subplot(label=str(0))
+fig.tight_layout()
 
 
 def save(channel):
@@ -57,44 +62,48 @@ def transfer_to_arduino(channel):
     return func
 
 
+def set_visible(channel):
+    def func(label):
+        if visibility_buttons[channel].get_status()[0]:
+            visible_diagrams[channel] = True
+            axes[channel] = fig.add_subplot(sum(visible_diagrams), 1, sum(visible_diagrams), label=str(channel))
+            for i in range(len(visible_diagrams)):
+                if visible_diagrams[i]:
+                    axes[i].change_geometry(sum(visible_diagrams), 1, sum(visible_diagrams[:i + 1]))
+        else:
+            visible_diagrams[channel] = False
+            fig.delaxes(axes[channel])
+            axes[channel] = None
+            for i in range(len(visible_diagrams)):
+                if visible_diagrams[i]:
+                    axes[i].change_geometry(sum(visible_diagrams), 1, sum(visible_diagrams[:i + 1]))
+
+    return func
+
+
 # plot live data
 def live_plotter():
-    # set buttons x and y
-    save_xy = [
-        (0.185, 0.75),
-        (0.43, 0.75),
-        (0.675, 0.75),
-        (0.92, 0.75),
-        (0.185, 0.25),
-        (0.43, 0.25),
-        (0.675, 0.25),
-        (0.92, 0.25),
-    ]
-    observe_xy = [
-        (0.185, 0.7),
-        (0.43, 0.7),
-        (0.675, 0.7),
-        (0.92, 0.7),
-        (0.185, 0.2),
-        (0.43, 0.2),
-        (0.675, 0.2),
-        (0.92, 0.2),
-    ]
-
     ani = FuncAnimation(plt.gcf(), animate, interval=INTERVAL)
 
     for i in range(NUM):
-        save_label = ["save"]
-        observe_label = ["observe"]
+        save_label = ["save{}".format(i + 1)]
+        observe_label = ["observe{}".format(i + 1)]
+        visible_label = ["visible{}".format(i + 1)]
 
         # x position, y position, width and height
-        save_ax = plt.axes([save_xy[i][0], save_xy[i][1], 0.1, 0.1], frame_on=False)
+        save_ax = plt.axes([np.linspace(0.05, 0.9, 8)[i], 0.16, 0.1, 0.08], frame_on=False)
         observe_ax = plt.axes(
-            [observe_xy[i][0], observe_xy[i][1], 0.1, 0.1], frame_on=False
+            [np.linspace(0.05, 0.9, 8)[i], 0.08, 0.1, 0.08], frame_on=False
         )
-
+        visible_ax = plt.axes([np.linspace(0.05, 0.9, 8)[i], 0, 0.1, 0.08], frame_on=False)
         save_buttons.append(CheckButtons(save_ax, save_label, [False]))
         transfer_buttons.append(CheckButtons(observe_ax, observe_label, [False]))
+        visibility_buttons.append(CheckButtons(visible_ax, visible_label, [True if i == 0 else False]))
+
+        #set colors for buttons
+        save_buttons[-1].rectangles[0].set_facecolor(colors[i])
+        transfer_buttons[-1].rectangles[0].set_facecolor(colors[i])
+        visibility_buttons[-1].rectangles[0].set_facecolor(colors[i])
 
         # clear content of values file
         save_file_name = "values_{}.txt".format(i + 1)
@@ -103,25 +112,23 @@ def live_plotter():
         # buttons functionalities
         save_buttons[i].on_clicked(save(i))
         transfer_buttons[i].on_clicked(transfer_to_arduino(i))
+        visibility_buttons[i].on_clicked(set_visible(i))
 
     # add some space between subplots and to the right of the rightmost ones
-    plt.subplots_adjust(wspace=0.6, right=0.92)
+    plt.subplots_adjust(bottom=0.24, hspace=1)
     plt.show()
 
 
 # animating each input data
 def animate(_):
     for i in range(NUM):
-        with buffer_lock:
-            # input_copy = adc_inputs[i].copy()
-            input_copy = adc_inputs[i][-400:].copy()
-        if len(input_copy) == 0:
-            continue
-        axes[i // 4, i % 4].cla()
-        axes[i // 4, i % 4].set_ylim(-100, 1100)
-        # axes[i // 4, i % 4].set_xlim(
-        #     0, np.power(np.e, int(np.log(len(input_copy))) + 1)
-        # )
-        axes[i // 4, i % 4].set_xlim(0, 410)
-        axes[i // 4, i % 4].plot(input_copy, color=colors[i])
-        axes[i // 4, i % 4].title.set_text("{}th Input".format(i + 1))
+        if visible_diagrams[i]:
+            with buffer_lock:
+                input_copy = adc_inputs[i][-400:].copy()
+            if len(input_copy) == 0:
+                continue
+            axes[i].cla()
+            axes[i].set_ylim(-100, 1100)
+            axes[i].set_xlim(0, 410)
+            axes[i].plot(input_copy, color=colors[i])
+            axes[i].title.set_text("{}th Input".format(i + 1))
