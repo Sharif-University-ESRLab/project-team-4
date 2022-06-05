@@ -6,29 +6,42 @@ import numpy as np
 from matplotlib.widgets import CheckButtons
 import json, os
 
-INTERVAL = 200  # Time between graph frames in milli seconds.
 
+# Time between graph frames in milli seconds.
+INTERVAL = 200  
+
+# plots colors
 colors = ["salmon", "grey", "yellow", "lightgreen", "orange", "pink", "cyan", "plum"]
 
+# initialization of buttons related to different channels
 save_buttons = [] * NUM
 transfer_buttons = [] * NUM
 visibility_buttons = [] * NUM
+
+# index of the element to save values after that
 save_start_index = [0] * NUM
-visible_diagrams = [True]
+
+# a list of boolean values, True if the corresponding channel is visible
+visible_diagrams = [True] # only first diagram is visible in the beginning
 visible_diagrams.extend([False] * (NUM - 1))
-# fig, axes = plt.subplots(sum(visible_diagrams), figsize=(10, 8))
+
+# initializing the figure to plot
 fig = plt.figure(figsize=(10, 8))
 axes = [None] * NUM
 axes[0] = fig.add_subplot(label=str(0))
 fig.tight_layout()
 
 
+# wrapper function for saving values of the input channels
 def save(channel):
     def func(label):
         save_file_name = f"values_{int(channel) + 1}.txt"
-        # print("---------------------------------", save_file_name, "--------------------------------")
+        
+        # button pressed to start saving
         if save_buttons[channel].get_status()[0]:
             save_start_index[channel] = len(adc_inputs[channel])
+        
+        # butten pressed to stop saving values and write saved ones to the file
         else:
             vals = []
             f = open(save_file_name, "r")
@@ -43,9 +56,12 @@ def save(channel):
     return func
 
 
+# wrapper function to transfer saved values to arduino to show them on the LEDs
 def transfer_to_arduino(channel):
     def func(label):
         save_file_name = f"values_{int(channel) + 1}.txt"
+        
+        # button pressed to start transfering to arduino
         if transfer_buttons[channel].get_status()[0]:
             vals = []
             f = open(save_file_name, "r")
@@ -54,22 +70,30 @@ def transfer_to_arduino(channel):
             f.close()
             with buffer_lock:
                 pwm_queues[channel].queue.clear()
+                # send saved values to pwm_queues 
                 [pwm_queues[channel].put(i) for i in vals]
+        
+        # button pressed to stop transfering to arduino 
         else:
             with buffer_lock:
+                # clear pwm_queues to show nothing on the LEDs (turn them off)
                 pwm_queues[channel].queue.clear()
 
     return func
 
 
+# set the diagram of the channel to be visible
 def set_visible(channel):
     def func(label):
+        # button pressed to show diagram of the channel
         if visibility_buttons[channel].get_status()[0]:
             visible_diagrams[channel] = True
             axes[channel] = fig.add_subplot(sum(visible_diagrams), 1, sum(visible_diagrams), label=str(channel))
             for i in range(len(visible_diagrams)):
                 if visible_diagrams[i]:
                     axes[i].change_geometry(sum(visible_diagrams), 1, sum(visible_diagrams[:i + 1]))
+        
+        # button pressed to hide diagram of the channel
         else:
             visible_diagrams[channel] = False
             fig.delaxes(axes[channel])
@@ -81,7 +105,7 @@ def set_visible(channel):
     return func
 
 
-# plot live data
+# plot live data, define buttons of channels and their functionalities
 def live_plotter():
     ani = FuncAnimation(plt.gcf(), animate, interval=INTERVAL)
 
@@ -100,7 +124,7 @@ def live_plotter():
         transfer_buttons.append(CheckButtons(observe_ax, observe_label, [False]))
         visibility_buttons.append(CheckButtons(visible_ax, visible_label, [True if i == 0 else False]))
 
-        #set colors for buttons
+        # set colors for buttons
         save_buttons[-1].rectangles[0].set_facecolor(colors[i])
         transfer_buttons[-1].rectangles[0].set_facecolor(colors[i])
         visibility_buttons[-1].rectangles[0].set_facecolor(colors[i])
