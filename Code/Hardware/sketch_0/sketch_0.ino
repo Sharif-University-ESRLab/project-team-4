@@ -12,6 +12,7 @@ void loop()
 {
 	long int t1 = millis();
 
+	// Creat analog inputs packet.
 	String out_packet = String("");
 	for (int i = 0; i < NUM; i++)
 	{
@@ -20,8 +21,10 @@ void loop()
 	}
 	Serial.println(out_packet);
 
+
 	if (Serial.available() > 40)
 	{
+		// Receive pwm outputs packet.
 		String in_packet = Serial.readStringUntil('\n');
 		for (int i = 0; i < NUM; i++)
 		{
@@ -31,5 +34,5 @@ void loop()
 		}
 	}
 	long int t2 = millis();
-	delay(50 - (t2 - t1)); // TODO: use clock
+	delay(50 - (t2 - t1));
 }
