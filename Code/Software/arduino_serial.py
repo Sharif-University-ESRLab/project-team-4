@@ -65,10 +65,11 @@ def start_read_adc_thread():
 
 
 ####  FAKE   ####
+# # fake inputs initialization
 # position_s = [random.randint(100, 900) for _ in range(NUM)]
 # speed_s = [random.randint(-5, +5) for _ in range(NUM)]
 
-
+# # create random inputs to plot
 # def read_adc():
 #     time.sleep(SAMPLE_DELAY / 1000)
 #     with buffer_lock:
@@ -83,6 +84,7 @@ def start_read_adc_thread():
 #             pwm_queues[i].put(position_s[i])
 
 
+# # print saved values in the terminal, in case of having no input, prints 0
 # def write_adc():
 #     with buffer_lock:
 #         for i in range(NUM):
@@ -93,6 +95,7 @@ def start_read_adc_thread():
 #             print('Output {}: {}'.format(i, val))
 
 
+# # define a thread for continuously reading and writing data
 # def start_read_adc_thread():
 #     def continuous_read_adc():
 #         while True:
