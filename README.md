@@ -8,6 +8,6 @@
 ساخت فانکشن ژنراتور و اسیلوسکوپ نرم‌افزاری به کمک برد آردوئینو و رسم نمودار در پایتون
 
 
-https://youtu.be/HYEi1YGlGLU
+https://youtu.be/IaI0R5UtWaE
 
 https://aparat.com/v/mXicv
